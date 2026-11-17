@@ -1,0 +1,8 @@
+# Règles ruff du dossier AILogos : celles du dépôt (../pyproject.toml), avec trois exceptions.
+extend = "../pyproject.toml"
+
+[lint.extend-per-file-ignores]
+# D    : comme pour scripts/ et examples/ du dépôt, pas de docstring imposée sur chaque fonction.
+# N999 : le dossier s'appelle « AILogos » (majuscules) par choix.
+# N818 : les exceptions portent des noms français (ErreurConfiguration, ErreurVoix…).
+"*" = ["D", "N999", "N818"]

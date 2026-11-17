@@ -1,0 +1,111 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# AILogos — configuration unique du poste robot
+#
+# Tous les programmes du dossier AILogos lisent ce fichier :
+#   enregistrer.py · entrainer.py · tester.py · monitorer.py · v2_commande_vocale.py
+#
+# À adapter une seule fois (ports USB, index des caméras), puis ne plus y toucher.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Espace de noms des datasets et des politiques : "<utilisateur_hf>/ailogos_attrape_balle".
+# Laisser "local" tant que rien n'est envoyé sur le Hub Hugging Face.
+utilisateur_hf: local
+# true = envoyer datasets et politiques sur le Hub (nécessite `hf auth login`
+# et un vrai nom d'utilisateur ci-dessus).
+envoyer_sur_hub: false
+# Dossier des sorties (politiques entraînées, journaux, rapports de test).
+dossier_sorties: outputs
+
+# ── Bras suiveur (celui qui attrape) ─────────────────────────────────────────
+robot:
+  type: so101_follower
+  port: /dev/ttyACM0 # trouvé avec `lerobot-find-port`
+  id: ailogos_follower # clé du fichier de calibration : garder le même partout
+  # Sécurité : déplacement maximal par pas de contrôle, en degrés (null = pas de limite).
+  # Mettre p. ex. 10 pour les premiers essais d'une nouvelle politique.
+  max_relative_target: null
+  cameras:
+    # Les noms (front, wrist) deviennent les clés du dataset : ne plus les changer
+    # après le premier enregistrement. Index trouvés avec `lerobot-find-cameras opencv`.
+    front: { type: opencv, index_or_path: 1, width: 640, height: 480, fps: 30 }
+    wrist: { type: opencv, index_or_path: 2, width: 640, height: 480, fps: 30 }
+
+# ── Bras leader (téléopération, uniquement pour enregistrer) ─────────────────
+teleop:
+  type: so101_leader
+  port: /dev/ttyACM1
+  id: ailogos_leader
+
+# ── Objets connus ────────────────────────────────────────────────────────────
+# Une politique ACT est entraînée par objet. Pour ajouter un objet : ajouter une
+# entrée ici, puis enregistrer → entraîner → tester.
+objets:
+  balle:
+    tache: "Attrape la balle"
+    # Mots que la commande vocale accepte pour désigner cet objet.
+    synonymes: [balle, ballon, boule]
+    # politique: chemin/ou/repo_hub   # optionnel : forcer une politique précise
+  crayon:
+    tache: "Attrape le crayon"
+    synonymes: [crayon, stylo, feutre]
+
+# ── 1. Enregistrement des démonstrations ─────────────────────────────────────
+enregistrement:
+  episodes: 50 # 50 pour commencer, 100+ ensuite
+  duree_episode_s: 20
+  duree_reset_s: 10
+  fps: 30
+
+# ── 2. Entraînement ──────────────────────────────────────────────────────────
+entrainement:
+  politique: act
+  device: cuda # cuda · mps (Mac) · cpu
+  batch_size: 8
+  # Nombre de pas. null = calculé à partir de `epoques` et de la taille du dataset.
+  steps: null
+  epoques: 10
+  steps_min: 20000 # plancher quand le nombre de pas est calculé
+  sauvegarde_tous_les: 10000 # un checkpoint tous les N pas
+  journal_tous_les: 100 # une ligne de métriques tous les N pas
+  # Part des épisodes gardée de côté pour mesurer une perte de validation (0 = désactivé).
+  validation: 0.1
+  # Suivi graphique des courbes avec Trackio (`trackio show --project ailogos`).
+  trackio: false
+
+# ── 3. Exécution sur le robot (tests et commandes vocales) ───────────────────
+execution:
+  duree_s: 20 # durée maximale d'une saisie avant retour au repos
+  device: null # null = celui de la politique (cuda), sinon cpu
+  # 2 = interpolation entre deux actions de la politique (mouvement plus fluide).
+  interpolation: 1
+
+# ── 3 bis. Campagne de test ──────────────────────────────────────────────────
+test:
+  essais: 10
+
+# ── 4. Monitoring : seuils d'alerte des moteurs (Feetech STS3215) ────────────
+sante:
+  temperature_alerte_c: 55
+  temperature_critique_c: 65 # au-delà, les programmes refusent de lancer une saisie
+  tension_min_v: 4.5 # alimentation 5 V ; mettre 10.5 pour la version 12 V
+  tension_max_v: 13.5
+  charge_alerte_pct: 85
+
+# ── V2. Commande vocale ──────────────────────────────────────────────────────
+voix:
+  langue: fr
+  # Modèle Whisper local : tiny · base · small · medium. `small` est un bon
+  # compromis en français sur un portable ; `base` si le CPU est modeste.
+  modele: small
+  device: cpu # cpu laisse le GPU à la politique ; cuda si la mémoire le permet
+  precision: int8
+  micro: null # null = micro par défaut ; sinon index ou nom (`--lister-micros`)
+  # Mot à prononcer avant chaque ordre, p. ex. "robot" → « robot, attrape la balle ».
+  # Vide = pas de mot de réveil. Recommandé dans une pièce où l'on discute.
+  mot_reveil: ""
+  # Détection de parole (mode écoute continue).
+  seuil_parole: 2.5 # multiple du bruit ambiant mesuré au démarrage
+  silence_fin_s: 0.8 # silence qui termine une phrase
+  duree_max_s: 6 # durée maximale d'une phrase
+  # Le robot confirme à voix haute ce qu'il a compris.
+  retour_vocal: true

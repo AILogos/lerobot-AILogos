@@ -1,0 +1,7 @@
+# Dépendances de la commande vocale (V2), en plus de celles de LeRobot :
+#   uv pip install -r AILogos/requirements-voix.txt
+#
+# sounddevice a besoin de la bibliothèque système PortAudio :
+#   Linux : sudo apt install libportaudio2      macOS / Windows : fournie avec le paquet
+faster-whisper>=1.1.0,<2.0.0
+sounddevice>=0.5.0,<0.6.0

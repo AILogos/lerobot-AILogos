@@ -1,0 +1,4 @@
+# Le dossier AILogos est rédigé en français : le correcteur orthographique anglais du
+# dépôt (hook pre-commit « typos ») n'y a pas de sens, on l'en exclut.
+[files]
+extend-exclude = ["*"]
